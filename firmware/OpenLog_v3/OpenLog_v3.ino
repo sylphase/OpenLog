@@ -218,7 +218,7 @@ char folderTree[FOLDER_TRACK_DEPTH][12];
 
 #define CFG_FILENAME "config.txt" //This is the name of the file that contains the unit settings
 
-#define MAX_CFG "115200,103,214,0,1,1,0\0" //= 115200 bps, escape char of ASCII(103), 214 times, new log mode, verbose on, echo on, ignore RX false. 
+#define MAX_CFG "5000000,103,214,0,1,1,0\0" //= 115200 bps, escape char of ASCII(103), 214 times, new log mode, verbose on, echo on, ignore RX false. 
 #define CFG_LENGTH (strlen(MAX_CFG) + 1) //Length of text found in config file. strlen ignores \0 so we have to add it back 
 #define SEQ_FILENAME "SEQLOG00.TXT" //This is the name for the file when you're in sequential mode
 
@@ -236,7 +236,8 @@ char folderTree[FOLDER_TRACK_DEPTH][12];
 #define LOCATION_IGNORE_RX		0x0C
 
 #define BAUD_MIN  300
-#define BAUD_MAX  1000000
+#define BAUD_MAX  5000000
+#define BAUD_MOD  2000000
 
 #define MODE_NEWLOG	0
 #define MODE_SEQLOG     1
@@ -365,13 +366,20 @@ void setup(void)
   read_system_settings(); //Load all system settings from EEPROM
 
   //Setup UART
-  NewSerial.begin(setting_uart_speed);
-  if (setting_uart_speed < 500)      // check for slow baud rates
+  NewSerial.begin(setting_uart_speed<BAUD_MOD ? setting_uart_speed :
+                     setting_uart_speed<2*BAUD_MOD ? setting_uart_speed-BAUD_MOD :
+                                                   setting_uart_speed-2*BAUD_MOD,
+    SP_8_BIT_CHAR | (setting_uart_speed<BAUD_MOD ? 0 :
+                     setting_uart_speed<2*BAUD_MOD ? SP_EVEN_PARITY :
+                                                   SP_ODD_PARITY));
+  if ((setting_uart_speed<BAUD_MOD ? setting_uart_speed :
+                     setting_uart_speed<2*BAUD_MOD ? setting_uart_speed-BAUD_MOD :
+                                                   setting_uart_speed-2*BAUD_MOD) < 500)      // check for slow baud rates
   {
     //There is an error in the Serial library for lower than 500bps. 
     //This fixes it. See issue 163: https://github.com/sparkfun/OpenLog/issues/163
     // redo USART baud rate configuration
-    UBRR0 = (F_CPU / (16UL * setting_uart_speed)) - 1;
+    UBRR0 = (F_CPU / (16UL * setting_uart_speed%BAUD_MOD)) - 1;
     UCSR0A &= ~_BV(U2X0);
   }
   NewSerial.print(F("1"));
@@ -403,6 +411,7 @@ void setup(void)
 
     if (configFile.open(&rootDirectory, configFileName, O_READ)) {
       int16_t c;
+      delay(5000); // give external device a chance to initialize
       while(true) {
         if( (c = configFile.read()) < 0) break; //We've reached the end of the file
         NewSerial.write(c);
@@ -942,7 +951,7 @@ void read_config_file(void)
   for(i = 0 ; i < len; i++)
   {
     //Pick out one setting from the line of text
-    for(j = 0 ; settings_string[i] != ',' && i < len && j < 6 ; )
+    for(j = 0 ; settings_string[i] != ',' && i < len && j < 7 ; )
     {
       new_setting[j] = settings_string[i];
       i++;
@@ -1006,7 +1015,12 @@ void read_config_file(void)
 
     writeBaud(new_system_baud); //Write this baudrate to EEPROM
     setting_uart_speed = new_system_baud;
-    NewSerial.begin(setting_uart_speed); //Move system to new uart speed
+    NewSerial.begin(setting_uart_speed<BAUD_MOD ? setting_uart_speed :
+                     setting_uart_speed<2*BAUD_MOD ? setting_uart_speed-BAUD_MOD :
+                                                   setting_uart_speed-2*BAUD_MOD,
+      SP_8_BIT_CHAR | (setting_uart_speed<BAUD_MOD ? 0 :
+                       setting_uart_speed<2*BAUD_MOD ? SP_EVEN_PARITY :
+                                                     SP_ODD_PARITY)); //Move system to new uart speed
 
       recordNewSettings = true;
   }
