@@ -392,6 +392,26 @@ void setup(void)
   if(setting_ignore_RX == OFF) //If we are NOT ignoring RX, then
     check_emergency_reset(); //Look to see if the RX pin is being pulled low
 
+  {
+    SdFile rootDirectory;
+    SdFile configFile;  
+    if (!rootDirectory.openRoot(&volume)) systemError(ERROR_ROOT_INIT); // open the root directory
+
+    #define BANNER_FILENAME "banner.txt"
+    char configFileName[strlen(BANNER_FILENAME)]; //Limited to 8.3
+    strcpy_P(configFileName, PSTR(BANNER_FILENAME)); //This is the name of the config file. 'config.sys' is probably a bad idea.
+
+    if (configFile.open(&rootDirectory, configFileName, O_READ)) {
+      int16_t c;
+      while(true) {
+        if( (c = configFile.read()) < 0) break; //We've reached the end of the file
+        NewSerial.write(c);
+      }
+    }
+    configFile.close();
+    rootDirectory.close();
+  }
+
   memset(folderTree, 0, sizeof(folderTree)); //Clear folder tree
 }
 
@@ -1993,7 +2013,7 @@ byte gotoDir(char *dir)
 void print_menu(void)
 {
   NewSerial.println(F("OpenLog v3.3"));
-  NewSerial.println(F("Basic commands:"));
+  NewSerial.println(F("Basic commands: ye"));
   NewSerial.println(F("new <file>\t\t: Creates <file>"));
   NewSerial.println(F("append <file>\t\t: Appends text to end of <file>"));
 
