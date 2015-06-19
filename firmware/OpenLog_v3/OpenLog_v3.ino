@@ -405,18 +405,40 @@ void setup(void)
     SdFile configFile;  
     if (!rootDirectory.openRoot(&volume)) systemError(ERROR_ROOT_INIT); // open the root directory
 
-    #define BANNER_FILENAME "banner.txt"
-    char configFileName[strlen(BANNER_FILENAME)]; //Limited to 8.3
-    strcpy_P(configFileName, PSTR(BANNER_FILENAME)); //This is the name of the config file. 'config.sys' is probably a bad idea.
+    #define STARTUP_FILENAME "startup.txt"
+    char configFileName[strlen(STARTUP_FILENAME)]; //Limited to 8.3
+    strcpy_P(configFileName, PSTR(STARTUP_FILENAME)); //This is the name of the config file. 'config.sys' is probably a bad idea.
 
     if (configFile.open(&rootDirectory, configFileName, O_READ)) {
-      int16_t c;
-      delay(5000); // give external device a chance to initialize
       while(true) {
-        if( (c = configFile.read()) < 0) break; //We've reached the end of the file
-        NewSerial.write(c);
+        int16_t c;
+        if( (c = configFile.read()) < 0) goto startup_end; //We've reached the end of the file
+        
+        if(c == 'D') {
+          uint32_t d = 0;
+          while(true) {
+            int16_t c2;
+            if( (c2 = configFile.read()) < 0) goto startup_end;
+            if(!('0' <= c2 <= '9')) break;
+            d *= 10;
+            d += c2 - '0';
+          }
+          delay(d);
+        } else if(c == 'W') {
+          uint32_t d = 0;
+          while(true) {
+            int16_t c2;
+            if( (c2 = configFile.read()) < 0) goto startup_end;
+            if(!('0' <= c2 <= '9')) break;
+            d *= 10;
+            d += c2 - '0';
+          }
+          NewSerial.write(d);
+        } else {
+        }
       }
     }
+startup_end:
     configFile.close();
     rootDirectory.close();
   }
