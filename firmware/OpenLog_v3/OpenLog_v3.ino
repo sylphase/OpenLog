@@ -419,7 +419,7 @@ void setup(void)
           while(true) {
             int16_t c2;
             if( (c2 = configFile.read()) < 0) goto startup_end;
-            if(!('0' <= c2 <= '9')) break;
+            if(!('0' <= c2 && c2 <= '9')) break;
             d *= 10;
             d += c2 - '0';
           }
@@ -429,7 +429,7 @@ void setup(void)
           while(true) {
             int16_t c2;
             if( (c2 = configFile.read()) < 0) goto startup_end;
-            if(!('0' <= c2 <= '9')) break;
+            if(!('0' <= c2 && c2 <= '9')) break;
             d *= 10;
             d += c2 - '0';
           }
